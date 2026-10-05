@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "npm run db:migrate && npm run db:bootstrap && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
