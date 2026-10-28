@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
@@ -32,6 +32,13 @@ export async function login(_prev: LoginState, form: FormData): Promise<LoginSta
   if (u?.lockedUntil && u.lockedUntil > new Date()) {
     const mins = Math.ceil((u.lockedUntil.getTime() - Date.now()) / 60000);
     return { error: `Too many failed attempts. Try again in ${mins} minute${mins === 1 ? "" : "s"}.`, email };
+  }
+  if (u?.pending) {
+    const okPending = await verifyPassword(password, u.passwordHash);
+    return {
+      error: okPending ? "Your account is waiting for the owner to approve it. Try again once they let you know." : "Incorrect email or password.",
+      email,
+    };
   }
   const ok = await verifyPassword(password, u?.active ? u.passwordHash : null);
   if (!u || !ok) {
@@ -83,5 +90,54 @@ export async function changePassword(_prev: { error?: string; ok?: boolean } | u
     .where(eq(users.id, u.id))
     .returning();
   await startSession(updated); // stay signed in here, sign out other devices
+  return { ok: true };
+}
+
+// ───────────── Self sign-up (owner must approve) ─────────────
+
+const signupSchema = z.object({
+  name: z.string().trim().min(1, "Enter your name").max(120),
+  email: z.string().trim().toLowerCase().email("Enter a valid email").max(200),
+  password: z.string().max(200),
+  confirm: z.string().max(200),
+  website: z.string().max(0).optional(), // honeypot — real people leave it empty
+});
+
+export type SignupState = { error?: string; ok?: boolean; values?: { name: string; email: string } } | undefined;
+
+const MAX_PENDING = 25;
+
+export async function signup(_prev: SignupState, form: FormData): Promise<SignupState> {
+  const raw = {
+    name: String(form.get("name") ?? ""),
+    email: String(form.get("email") ?? ""),
+    password: String(form.get("password") ?? ""),
+    confirm: String(form.get("confirm") ?? ""),
+    website: String(form.get("website") ?? ""),
+  };
+  const values = { name: raw.name.slice(0, 120), email: raw.email.slice(0, 200) };
+  const parsed = signupSchema.safeParse(raw);
+  if (!parsed.success) {
+    if (raw.website) return { ok: true }; // bot: pretend it worked
+    return { error: parsed.error.issues[0]?.message ?? "Check the form", values };
+  }
+  const v = parsed.data;
+  if (v.password !== v.confirm) return { error: "Passwords don't match.", values };
+  const problem = passwordProblems(v.password);
+  if (problem) return { error: problem, values };
+
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, v.email)).limit(1);
+  if (existing) return { error: "An account with this email already exists. Try signing in.", values };
+  const [{ n }] = await db.select({ n: count() }).from(users).where(and(eq(users.pending, true)));
+  if (n >= MAX_PENDING) return { error: "Too many sign-ups are waiting for approval. Please contact the owner.", values };
+
+  await db.insert(users).values({
+    name: v.name,
+    email: v.email,
+    passwordHash: await hashPassword(v.password),
+    role: "EMPLOYEE",
+    active: false,
+    pending: true,
+  });
   return { ok: true };
 }

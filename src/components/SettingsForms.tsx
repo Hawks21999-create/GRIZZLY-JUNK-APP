@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Check, Loader2, Pencil, Plus } from "lucide-react";
 import { changePassword } from "@/app/actions/auth";
 import {
+  approveUser,
   createUser,
+  declineUser,
   disconnectGoogleCalendar,
   saveBusinessSettings,
   saveCalendarSettings,
@@ -18,12 +20,13 @@ import {
 } from "@/app/actions/settings";
 import type { ActionResult } from "@/lib/action";
 import { AddressInput } from "./AddressInput";
+import { useAction } from "./useAction";
 import { ErrorBanner, Field, NumInput, Segmented, Select, Toggle } from "./form";
 import { cx } from "./ui";
 
 function useSaver() {
-  const router = useRouter();
-  const [pending, start] = useTransition();
+  // useAction: plain pending flag + page refresh after the save (robust on phones)
+  const [pending, start] = useAction();
   const [err, setErr] = useState<string | null>(null);
   const [fe, setFe] = useState<Record<string, string>>({});
   const [ok, setOk] = useState(false);
@@ -92,8 +95,9 @@ export function BusinessForm({
         <AddressInput
           value={f.businessAddress}
           mapsEnabled={mapsEnabled}
-          onChange={(t) => setF({ ...f, businessAddress: t, businessLat: null, businessLng: null })}
-          onResolved={(a) => setF({ ...f, businessAddress: a.formatted, businessLat: a.lat, businessLng: a.lng })}
+          verified={f.businessLat != null}
+          onChange={(t) => setF((p) => ({ ...p, businessAddress: t, businessLat: null, businessLng: null }))}
+          onResolved={(a) => setF((p) => ({ ...p, businessAddress: a.formatted, businessLat: a.lat, businessLng: a.lng }))}
         />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -406,8 +410,9 @@ function DumpForm({
         <AddressInput
           value={f.address}
           mapsEnabled={mapsEnabled}
-          onChange={(t) => setF({ ...f, address: t, lat: null, lng: null })}
-          onResolved={(a) => setF({ ...f, address: a.formatted, lat: a.lat, lng: a.lng })}
+          verified={f.lat != null}
+          onChange={(t) => setF((p) => ({ ...p, address: t, lat: null, lng: null }))}
+          onResolved={(a) => setF((p) => ({ ...p, address: a.formatted, lat: a.lat, lng: a.lng }))}
         />
       </Field>
       <Field label="Typical fee per load" error={s.fe.defaultFee}>
@@ -535,14 +540,65 @@ export function CalendarSettingsForm({ enabled, calendarId, connected }: { enabl
 
 // ───────────── Users & account ─────────────
 
-export function UsersEditor({ users, meId, isOwner }: { users: { id: string; name: string; email: string; role: string; active: boolean; lastLoginAt: string | null }[]; meId: string; isOwner: boolean }) {
+export function UsersEditor({
+  users,
+  meId,
+  isOwner,
+}: {
+  users: { id: string; name: string; email: string; role: string; active: boolean; pending: boolean; lastLoginAt: string | null }[];
+  meId: string;
+  isOwner: boolean;
+}) {
   const [f, setF] = useState({ name: "", email: "", role: "EMPLOYEE" as "ADMIN" | "EMPLOYEE", password: "" });
   const [adding, setAdding] = useState(false);
   const s = useSaver();
+  const waiting = users.filter((u) => u.pending);
+  const accounts = users.filter((u) => !u.pending);
   return (
     <div className="space-y-3">
+      {waiting.length ? (
+        <div className="card overflow-hidden ring-2 ring-brand-500">
+          <div className="bg-bear-900 px-4 py-2.5 text-sm font-bold text-brand-400">
+            Waiting for approval ({waiting.length})
+          </div>
+          <div className="divide-y divide-stone-100">
+            {waiting.map((u) => (
+              <div key={u.id} className="space-y-2 px-4 py-3">
+                <div>
+                  <div className="font-semibold">{u.name}</div>
+                  <div className="text-sm text-stone-500">{u.email}</div>
+                </div>
+                {isOwner ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    <button type="button" className="btn-primary min-h-11 px-2 text-sm" disabled={s.pending} onClick={() => s.save(() => approveUser(u.id, "ADMIN"))}>
+                      Approve: Full access
+                    </button>
+                    <button type="button" className="btn-dark min-h-11 px-2 text-sm" disabled={s.pending} onClick={() => s.save(() => approveUser(u.id, "EMPLOYEE"))}>
+                      Approve: Employee
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary min-h-11 px-2 text-sm text-red-600"
+                      disabled={s.pending}
+                      onClick={() => confirm(`Decline ${u.email}?`) && s.save(() => declineUser(u.id))}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                ) : (
+                  <div className="text-xs text-stone-500">Only the owner can approve.</div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-stone-100 px-4 py-2 text-xs text-stone-500">
+            <b>Full access</b> sees everything except user management. <b>Employee</b> can work leads and jobs but can&apos;t see company finances,
+            expenses, reports or settings.
+          </div>
+        </div>
+      ) : null}
       <div className="card divide-y divide-stone-100">
-        {users.map((u) => (
+        {accounts.map((u) => (
           <div key={u.id} className={cx("flex items-center gap-3 px-4 py-3", !u.active && "opacity-50")}>
             <div className="min-w-0 flex-1">
               <div className="truncate font-semibold">

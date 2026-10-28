@@ -241,6 +241,7 @@ export async function createJob(input: JobInputParsed, actor: Actor) {
       zip: input.zip,
       lat: input.lat,
       lng: input.lng,
+      placeId: input.placeId ?? null,
       leadSourceId: input.leadSourceId,
     });
     const snap = await vehicleSnapshot(tx, input.vehicleId, settings.defaultVehicleId);
@@ -259,6 +260,7 @@ export async function createJob(input: JobInputParsed, actor: Actor) {
         zip: input.zip,
         lat: input.lat ?? null,
         lng: input.lng ?? null,
+        placeId: input.lat != null ? (input.placeId ?? null) : null,
         quotedPrice: input.quotedPrice,
         deposit: input.deposit,
         paymentStatus: input.paymentStatus as never,
@@ -312,6 +314,7 @@ export async function updateJob(id: string, input: JobInputParsed & { expenseIds
       zip: input.zip,
       lat: input.lat,
       lng: input.lng,
+      placeId: input.placeId ?? null,
       leadSourceId: input.leadSourceId,
     });
     // Keep customer contact info in sync with what was edited on the job form.
@@ -346,6 +349,7 @@ export async function updateJob(id: string, input: JobInputParsed & { expenseIds
         zip: input.zip,
         lat: input.lat ?? null,
         lng: input.lng ?? null,
+        placeId: input.lat != null ? (input.placeId ?? null) : null,
         quotedPrice: input.quotedPrice,
         deposit: input.deposit,
         paymentStatus: input.paymentStatus as never,

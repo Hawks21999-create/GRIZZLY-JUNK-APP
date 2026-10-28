@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import type { CityRow } from "@/server/reports";
 import { FOCUS_CITIES } from "@/lib/city";
 import { money, money0, pct } from "@/lib/format";
@@ -11,7 +11,7 @@ import { Card, PageHeader, cx } from "@/components/ui";
 export const metadata = { title: "City Performance" };
 
 export default async function CitiesPage({ searchParams }: { searchParams: Promise<{ period?: string; from?: string; to?: string; source?: string }> }) {
-  await requireAdmin();
+  await requireAdminPage();
   const sp = await searchParams;
   const s = await getSettings();
   const key = parsePeriod(sp.period, "month");

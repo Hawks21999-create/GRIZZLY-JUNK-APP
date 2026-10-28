@@ -33,6 +33,15 @@ const optUuid = z
   .transform((v) => (v ? v : null));
 const lat = z.number().min(-90).max(90).nullable().optional();
 const lng = z.number().min(-180).max(180).nullable().optional();
+/** Google Place ID of a verified address (only set when picked from autocomplete). */
+const placeId = z
+  .string()
+  .trim()
+  .max(300)
+  .regex(/^[A-Za-z0-9_-]*$/, "Invalid place id")
+  .nullable()
+  .optional()
+  .transform((v) => (v ? v : null));
 
 export const ymdSchema = z.string().refine(isValidYmd, "Invalid date (YYYY-MM-DD)");
 export const hmSchema = z.string().refine(isValidHm, "Invalid time (HH:MM)");
@@ -78,6 +87,7 @@ export const jobInputSchema = z
     zip: optText(20),
     lat,
     lng,
+    placeId,
     date: z.union([ymdSchema, z.literal("")]).nullable().optional(),
     time: z.union([hmSchema, z.literal("")]).nullable().optional(),
     durationMinutes: z.number().int().min(15).max(24 * 60),
@@ -208,6 +218,7 @@ export const customerSchema = z.object({
   zip: optText(20),
   lat,
   lng,
+  placeId,
   leadSourceId: optUuid,
   notes: optText(5000),
 });

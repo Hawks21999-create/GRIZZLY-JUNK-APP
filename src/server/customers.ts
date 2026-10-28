@@ -20,6 +20,7 @@ export type CustomerMatchInput = {
   zip?: string | null;
   lat?: number | null;
   lng?: number | null;
+  placeId?: string | null;
   leadSourceId?: string | null;
 };
 
@@ -74,6 +75,7 @@ export async function resolveCustomer(tx: Tx, input: CustomerMatchInput): Promis
         zip: input.zip ?? null,
         lat: input.lat ?? null,
         lng: input.lng ?? null,
+        placeId: input.placeId ?? null,
       });
     }
     if (!existing.leadSourceId && input.leadSourceId) patch.leadSourceId = input.leadSourceId;
@@ -95,6 +97,7 @@ export async function resolveCustomer(tx: Tx, input: CustomerMatchInput): Promis
       zip: input.zip ?? null,
       lat: input.lat ?? null,
       lng: input.lng ?? null,
+      placeId: input.placeId ?? null,
       leadSourceId: input.leadSourceId ?? null,
     })
     .returning({ id: customers.id });
@@ -119,6 +122,7 @@ export async function searchCustomers(q: string, limit = 8) {
       zip: customers.zip,
       lat: customers.lat,
       lng: customers.lng,
+      placeId: customers.placeId,
       leadSourceId: customers.leadSourceId,
     })
     .from(customers)

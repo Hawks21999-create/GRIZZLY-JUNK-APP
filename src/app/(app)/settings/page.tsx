@@ -1,5 +1,5 @@
 import { SETTINGS_SECTIONS } from "@/components/settings-sections";
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import { ListLink, PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Settings" };
@@ -7,7 +7,7 @@ export const metadata = { title: "Settings" };
 
 
 export default async function SettingsPage() {
-  await requireAdmin();
+  await requireAdminPage();
   return (
     <div className="space-y-4">
       <PageHeader title="Settings" />

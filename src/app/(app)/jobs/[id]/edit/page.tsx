@@ -26,6 +26,7 @@ export default async function EditJobPage({ params, searchParams }: { params: Pr
     zip: j.zip,
     lat: j.lat,
     lng: j.lng,
+    placeId: j.placeId,
     date: j.scheduledStart ? toYmd(j.scheduledStart, tz) : "",
     time: j.scheduledStart ? toHm(j.scheduledStart, tz) : "",
     durationMinutes: j.durationMinutes,

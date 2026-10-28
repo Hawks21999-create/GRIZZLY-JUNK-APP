@@ -47,6 +47,7 @@ type CustomerLite = {
   zip: string | null;
   lat: number | null;
   lng: number | null;
+  placeId?: string | null;
   leadSourceId: string | null;
 };
 
@@ -114,7 +115,7 @@ export function JobForm({
       customer: { name: c.name, phone: c.phone ?? p.customer.phone, email: c.email ?? p.customer.email },
       leadSourceId: p.leadSourceId ?? (options.leadSources.find((l) => l.name === "Repeat Customer")?.id || c.leadSourceId),
     }));
-    if (c.address && !f.address) applyAddress({ formatted: c.address, street: null, city: c.city, state: c.state, zip: c.zip, lat: c.lat, lng: c.lng });
+    if (c.address && !f.address) applyAddress({ formatted: c.address, street: null, streetNumber: null, streetName: null, city: c.city, state: c.state, zip: c.zip, lat: c.lat, lng: c.lng, placeId: c.placeId ?? null });
   }
 
   // ── Address → route ──────────────────────────────────────
@@ -129,9 +130,10 @@ export function JobForm({
   }
 
   function applyAddress(a: ResolvedAddress) {
-    setF((p) => ({ ...p, address: a.formatted, city: a.city ?? p.city, state: a.state ?? p.state, zip: a.zip ?? p.zip, lat: a.lat, lng: a.lng }));
+    setF((p) => ({ ...p, address: a.formatted, city: a.city ?? p.city, state: a.state ?? p.state, zip: a.zip ?? p.zip, lat: a.lat, lng: a.lng, placeId: a.placeId }));
     syncCustomerStop(a.formatted, a.lat, a.lng);
-    setAutoKey(`${a.formatted}|${a.lat}|${a.lng}`);
+    // Unique per pick: re-picking the same address after an edit must recalc too.
+    setAutoKey(`${a.formatted}|${a.lat}|${a.lng}|${Date.now()}`);
   }
 
   // ── Workers ──────────────────────────────────────────────
@@ -206,6 +208,7 @@ export function JobForm({
       zip: f.zip,
       lat: f.lat,
       lng: f.lng,
+      placeId: f.lat != null ? f.placeId : null,
       date: f.date || null,
       time: f.time || null,
       durationMinutes: f.durationMinutes,
@@ -358,11 +361,18 @@ export function JobForm({
           <AddressInput
             value={f.address}
             mapsEnabled={mapsEnabled}
+            verified={f.lat != null}
             onChange={(t) => {
-              setF((p) => ({ ...p, address: t, lat: null, lng: null }));
+              setF((p) => ({ ...p, address: t, lat: null, lng: null, placeId: null }));
               if (!mapsEnabled) syncCustomerStop(t, null, null);
             }}
             onResolved={applyAddress}
+            onCommit={(t) => {
+              // Typed by hand (no suggestion picked): still route to it by text.
+              if (!mapsEnabled || f.lat != null || t.trim().length < 5) return;
+              syncCustomerStop(t.trim(), null, null);
+              setAutoKey(`typed|${t.trim()}|${Date.now()}`);
+            }}
           />
         </Field>
         <div className="grid grid-cols-[1fr_4.5rem_6rem] gap-2">

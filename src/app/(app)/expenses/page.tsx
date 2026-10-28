@@ -3,7 +3,7 @@ import { and, desc, gte, lte } from "drizzle-orm";
 import { Paperclip, Plus } from "lucide-react";
 import { db } from "@/db";
 import { attachments, businessExpenses } from "@/db/schema";
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import { EXPENSE_CATEGORY_LABEL } from "@/lib/constants";
 import { money } from "@/lib/format";
 import { fmtYmd, periodDays, type PeriodKey } from "@/lib/tz";
@@ -15,7 +15,7 @@ import { isNotNull } from "drizzle-orm";
 export const metadata = { title: "Expenses" };
 
 export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ period?: string; from?: string; to?: string }> }) {
-  await requireAdmin();
+  await requireAdminPage();
   const sp = await searchParams;
   const s = await getSettings();
   const key = (["today", "week", "month", "last_month", "year", "custom"].includes(sp.period ?? "") ? sp.period : "month") as PeriodKey;

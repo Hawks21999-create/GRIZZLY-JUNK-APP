@@ -4,13 +4,13 @@ import { db } from "@/db";
 import { attachments, businessExpenses } from "@/db/schema";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { PageHeader } from "@/components/ui";
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import { getLeadSources } from "@/server/settings";
 
 export const metadata = { title: "Edit Expense" };
 
 export default async function EditExpensePage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
+  await requireAdminPage();
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const [e] = await db.select().from(businessExpenses).where(eq(businessExpenses.id, id));

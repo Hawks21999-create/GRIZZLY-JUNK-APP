@@ -1,8 +1,8 @@
 import Link from "@/components/Link";
-import { and, gte, inArray, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, lt } from "drizzle-orm";
 import { BarChart3, Calendar, MapPinned, PhoneIncoming, Plus, Receipt } from "lucide-react";
 import { db } from "@/db";
-import { jobs, type JobStatus } from "@/db/schema";
+import { jobs, users, type JobStatus } from "@/db/schema";
 import { jobFinancials, round2 } from "@/lib/calc";
 import { JOB_STATUSES, STATUS_LABEL } from "@/lib/constants";
 import { money, money0, miles, pct, ratio } from "@/lib/format";
@@ -59,6 +59,7 @@ export default async function Dashboard({
     profit: round2(bookedNow.reduce((a, b) => a + b.profit, 0)),
   };
 
+  const pendingAccounts = user?.role === "OWNER" ? await db.$count(users, eq(users.pending, true)) : 0;
   const m = report.totals;
   const adSpend = report.advertising.total;
   const showMoney = user?.role !== "EMPLOYEE";
@@ -66,6 +67,14 @@ export default async function Dashboard({
 
   return (
     <div className="space-y-6">
+      {pendingAccounts ? (
+        <Link href="/settings/users" className="flex items-center justify-between gap-3 rounded-2xl bg-bear-900 px-4 py-3 text-white ring-2 ring-brand-500">
+          <span className="font-semibold">
+            {pendingAccounts} new account{pendingAccounts === 1 ? "" : "s"} waiting for your approval
+          </span>
+          <span className="font-bold text-brand-400">Review ›</span>
+        </Link>
+      ) : null}
       {/* Quick actions */}
       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
         <Quick href="/leads/new" label="New Lead" primary icon={<PhoneIncoming className="h-6 w-6" />} />

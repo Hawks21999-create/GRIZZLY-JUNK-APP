@@ -1,13 +1,13 @@
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { PageHeader } from "@/components/ui";
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import { todayYmd } from "@/lib/tz";
 import { getLeadSources, getSettings } from "@/server/settings";
 
 export const metadata = { title: "New Expense" };
 
 export default async function NewExpensePage() {
-  await requireAdmin();
+  await requireAdminPage();
   const [s, sources] = await Promise.all([getSettings(), getLeadSources()]);
   return (
     <div>

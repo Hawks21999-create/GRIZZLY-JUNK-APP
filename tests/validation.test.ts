@@ -64,3 +64,13 @@ describe("helpers", () => {
     expect(phoneDigits("12")).toBeNull();
   });
 });
+
+describe("verified address fields", () => {
+  it("accepts a Google Place ID and rejects junk", () => {
+    const ok = jobInputSchema.parse({ ...base, lat: 34.2, lng: -84.1, placeId: "ChIJN1t_tDeuEmsRUsoyG83frY4" });
+    expect(ok.placeId).toBe("ChIJN1t_tDeuEmsRUsoyG83frY4");
+    expect(jobInputSchema.parse({ ...base, placeId: "" }).placeId).toBeNull();
+    expect(jobInputSchema.parse({ ...base }).placeId).toBeNull();
+    expect(jobInputSchema.safeParse({ ...base, placeId: "<script>" }).success).toBe(false);
+  });
+});

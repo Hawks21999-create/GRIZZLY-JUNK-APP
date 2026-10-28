@@ -243,7 +243,46 @@ async function main() {
   }
   await q("delete from customers c where c.name like $1 and not exists (select 1 from jobs j where j.customer_id = c.id)", [`${name}%`]);
 
-  // 11. delete
+  // 11. Self sign-up → owner approval → employee access
+  const suEmail = `e2e-signup-${tag}@example.com`;
+  const ctx2 = await browser.newContext({ viewport: { width: 393, height: 852 }, isMobile: true, hasTouch: true });
+  const p2 = await ctx2.newPage();
+  await p2.goto(`${BASE}/signup`, { waitUntil: "networkidle" });
+  await p2.fill("#name", "E2E Helper");
+  await p2.fill("#email", suEmail);
+  await p2.fill("#password", "HelperPass123");
+  await p2.fill("#confirm", "HelperPass123");
+  await p2.getByRole("button", { name: "Request account" }).click();
+  await p2.getByText("Request sent").waitFor();
+  ok(true, "Sign-up page sends an account request");
+  await p2.goto(`${BASE}/login`, { waitUntil: "networkidle" });
+  await p2.fill("#email", suEmail);
+  await p2.fill("#password", "HelperPass123");
+  await p2.click("button[type=submit]");
+  await p2.getByText("waiting for the owner").waitFor();
+  ok(true, "Unapproved account can't sign in yet");
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.getByText(/waiting for your approval/).waitFor();
+  await page.goto(`${BASE}/settings/users`, { waitUntil: "networkidle" });
+  await page.getByText(suEmail).waitFor();
+  await page.locator("div.space-y-2", { hasText: suEmail }).getByRole("button", { name: "Approve: Employee" }).click();
+  await page.waitForFunction(async () => true);
+  for (let i = 0; i < 20; i++) {
+    const [r] = await q<{ pending: boolean; active: boolean; role: string }>("select pending, active, role from users where email=$1", [suEmail]);
+    if (!r.pending) break;
+    await page.waitForTimeout(250);
+  }
+  const [appr] = await q<{ pending: boolean; active: boolean; role: string }>("select pending, active, role from users where email=$1", [suEmail]);
+  ok(!appr.pending && appr.active && appr.role === "EMPLOYEE", "Owner approves the account as Employee");
+  await p2.fill("#password", "HelperPass123");
+  await Promise.all([p2.waitForURL(`${BASE}/`), p2.click("button[type=submit]")]);
+  await p2.goto(`${BASE}/reports`, { waitUntil: "networkidle" });
+  await p2.getByText("This page is for the owner/admin").waitFor();
+  ok(true, "Approved employee can sign in but can't see reports");
+  await ctx2.close();
+  await q("delete from users where email=$1", [suEmail]);
+
+  // 12. delete
   for (const id of [job2, jobId]) {
     await page.goto(`${BASE}/jobs/${id}`, { waitUntil: "networkidle" });
     await Promise.all([page.waitForURL(`${BASE}/jobs`), page.getByRole("button", { name: "Delete job" }).click()]);

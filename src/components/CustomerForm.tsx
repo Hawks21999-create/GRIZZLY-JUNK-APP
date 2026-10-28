@@ -17,6 +17,7 @@ export type CustomerFormValues = {
   zip: string | null;
   lat: number | null;
   lng: number | null;
+  placeId: string | null;
   leadSourceId: string | null;
   notes: string;
 };
@@ -80,8 +81,9 @@ export function CustomerForm({
         <AddressInput
           value={f.address}
           mapsEnabled={mapsEnabled}
-          onChange={(t) => setF((p) => ({ ...p, address: t, lat: null, lng: null }))}
-          onResolved={(a) => setF((p) => ({ ...p, address: a.formatted, city: a.city, state: a.state, zip: a.zip, lat: a.lat, lng: a.lng }))}
+          verified={f.lat != null}
+          onChange={(t) => setF((p) => ({ ...p, address: t, lat: null, lng: null, placeId: null }))}
+          onResolved={(a) => setF((p) => ({ ...p, address: a.formatted, city: a.city, state: a.state, zip: a.zip, lat: a.lat, lng: a.lng, placeId: a.placeId }))}
         />
       </Field>
       {!mapsEnabled ? (

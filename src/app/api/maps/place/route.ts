@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { apiUser, jsonError } from "@/lib/api";
-import { geocode, placeDetails } from "@/lib/maps-google";
+import { friendlyMapsError, geocode, placeDetails } from "@/lib/maps-google";
 
 /** GET ?id=<placeId>&session=…  or  ?address=<free text> */
 export async function GET(req: NextRequest) {
   const u = await apiUser();
   if (u instanceof NextResponse) return u;
   const key = process.env.GOOGLE_MAPS_API_KEY;
-  if (!key) return jsonError("Google Maps is not configured (GOOGLE_MAPS_API_KEY).", 501);
+  if (!key) return jsonError("Address lookup isn't set up yet (GOOGLE_MAPS_API_KEY).", 501);
   const id = req.nextUrl.searchParams.get("id");
   const address = req.nextUrl.searchParams.get("address");
   try {
@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     }
     return jsonError("Provide id or address");
   } catch (e) {
-    return jsonError(e instanceof Error ? e.message : "Lookup failed", 502);
+    console.error("[maps/place]", e instanceof Error ? e.message : e);
+    const f = friendlyMapsError(e);
+    return jsonError(f.message.replace("load address suggestions", "verify that address"), f.status);
   }
 }

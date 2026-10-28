@@ -12,6 +12,7 @@ export type JobFormInitial = {
   zip: string | null;
   lat: number | null;
   lng: number | null;
+  placeId: string | null;
   date: string;
   time: string;
   durationMinutes: number;
@@ -66,6 +67,7 @@ export function newJobInitial(
     zip: null,
     lat: null,
     lng: null,
+    placeId: null,
     date: today,
     time: "09:00",
     durationMinutes: st.defaultJobDuration,

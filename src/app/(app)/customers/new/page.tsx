@@ -11,7 +11,7 @@ export default async function NewCustomerPage() {
       <PageHeader title="New Customer" back="/customers" />
       <CustomerForm
         id={null}
-        initial={{ name: "", phone: "", email: "", address: "", city: null, state: null, zip: null, lat: null, lng: null, leadSourceId: null, notes: "" }}
+        initial={{ name: "", phone: "", email: "", address: "", city: null, state: null, zip: null, lat: null, lng: null, placeId: null, leadSourceId: null, notes: "" }}
         leadSources={sources.map((l) => ({ id: l.id, name: l.name }))}
         mapsEnabled={Boolean(process.env.GOOGLE_MAPS_API_KEY)}
       />

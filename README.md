@@ -132,6 +132,8 @@ No keys or secrets are hard-coded. API keys stay on the server: the browser talk
 6. Put it in `GOOGLE_MAPS_API_KEY` and restart or redeploy.
 7. In the app, go to **Settings → Business** and pick your **business address** from the suggestions. Every route starts and ends there. Then add your dump facilities with addresses in **Settings → Dump Facilities**.
 
+**Address autocomplete:** every address field (job, lead, customer, extra route stops, business address and dump facilities) shows Google suggestions from the 3rd character, about 250 ms after you stop typing. Results lean toward Cumming / North Georgia (your business address once it's set) but any U.S. address can be found. Tap a suggestion, or use ↑/↓ + Enter on a computer, to fill the standardized address. City, state, ZIP, latitude/longitude and the Google Place ID are saved with the job and customer, and a green check marks a verified address. If Google is down or out of quota, a small note appears and you can keep typing the address by hand. A hand-typed address is still used for the mileage route. Test: `GOOGLE_MAPS_API_KEY=test npm run start`, then `npm run test:e2e:address`.
+
 **Settings → Google Maps & Calendar** shows whether Maps is active. Without a key the app still works: you type leg miles or a total by hand.
 
 **How mileage works:** the default route is *Business → Customer → Dump → Business*. On each job you can switch to *Business → Customer → Business*, add more customers or stops, reorder or remove stops, and the miles recalculate automatically. You can also **manually override** the total. When you complete the job you enter **actual miles**, e.g. from the odometer.

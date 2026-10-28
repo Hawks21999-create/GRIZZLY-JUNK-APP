@@ -43,6 +43,13 @@ export async function requireAdmin(): Promise<CurrentUser> {
   return u;
 }
 
+/** For pages: employees are sent to a friendly "no access" page instead of an error. */
+export async function requireAdminPage(): Promise<CurrentUser> {
+  const u = await requireUser();
+  if (u.role === "EMPLOYEE") redirect("/no-access");
+  return u;
+}
+
 export async function startSession(user: { id: string; sessionVersion: number; role: string }) {
   const token = await signSession({ sub: user.id, sv: user.sessionVersion, role: user.role });
   const jar = await cookies();

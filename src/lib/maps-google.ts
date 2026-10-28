@@ -17,12 +17,22 @@ export type AddressSuggestion = { placeId: string; main: string; secondary: stri
 export type ResolvedAddress = {
   formatted: string;
   street: string | null;
+  streetNumber: string | null;
+  streetName: string | null;
   city: string | null;
   state: string | null;
   zip: string | null;
   lat: number | null;
   lng: number | null;
+  placeId: string | null;
 };
+
+/** Cumming, GA — default search bias when the business address isn't set yet. */
+export const DEFAULT_BIAS = { lat: 34.2073, lng: -84.1402 };
+/** Places API (New) allows a bias circle of at most 50 km. */
+const BIAS_RADIUS_M = 50000;
+
+const stripUsa = (t: string) => t.replace(/,\s*(USA|United States)$/i, "");
 
 export type RouteWaypoint = { address: string; lat?: number | null; lng?: number | null };
 
@@ -42,6 +52,22 @@ export class MapsError extends Error {
   }
 }
 
+/** Minimum characters before we ask Google for suggestions. */
+export const ADDRESS_MIN_CHARS = 3;
+
+/** Turn a Google error into a short message the person can act on. */
+export function friendlyMapsError(e: unknown): { message: string; status: number } {
+  const status = e instanceof MapsError ? (e.status ?? 502) : 502;
+  const raw = e instanceof Error ? e.message : "";
+  if (status === 429 || /quota|RESOURCE_EXHAUSTED|rate/i.test(raw)) {
+    return { message: "Address suggestions are busy right now — keep typing the address.", status: 429 };
+  }
+  if (status === 403 || status === 401 || /API key|not authorized|PERMISSION_DENIED|has not been used|disabled/i.test(raw)) {
+    return { message: "Address suggestions are off (Google Maps key problem) — type the address.", status: 503 };
+  }
+  return { message: "Couldn't load address suggestions — type the address.", status: 502 };
+}
+
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
 export async function autocomplete(
@@ -50,16 +76,18 @@ export async function autocomplete(
   opts: { sessionToken?: string; biasLat?: number | null; biasLng?: number | null } = {},
   f: Fetcher = fetch,
 ): Promise<AddressSuggestion[]> {
+  // Bias (not restrict) toward the service area: nearby North Georgia
+  // addresses rank first, but any U.S. address can still be found.
+  const biasLat = opts.biasLat ?? DEFAULT_BIAS.lat;
+  const biasLng = opts.biasLng ?? DEFAULT_BIAS.lng;
   const body: Record<string, unknown> = {
     input,
     includedRegionCodes: ["us"],
+    regionCode: "us",
+    languageCode: "en",
     sessionToken: opts.sessionToken,
+    locationBias: { circle: { center: { latitude: biasLat, longitude: biasLng }, radius: BIAS_RADIUS_M } },
   };
-  if (opts.biasLat != null && opts.biasLng != null) {
-    body.locationBias = {
-      circle: { center: { latitude: opts.biasLat, longitude: opts.biasLng }, radius: 50000 },
-    };
-  }
   const res = await f("https://places.googleapis.com/v1/places:autocomplete", {
     method: "POST",
     headers: {
@@ -87,8 +115,8 @@ export async function autocomplete(
     .map((p) => ({
       placeId: p.placeId,
       main: p.structuredFormat?.mainText?.text ?? p.text?.text ?? "",
-      secondary: p.structuredFormat?.secondaryText?.text ?? "",
-      full: p.text?.text ?? "",
+      secondary: stripUsa(p.structuredFormat?.secondaryText?.text ?? ""),
+      full: stripUsa(p.text?.text ?? ""),
     }));
 }
 
@@ -104,6 +132,8 @@ export function parseAddressComponents(components: AddrComponent[]) {
   const route = get("route");
   return {
     street: [num, route].filter(Boolean).join(" ") || null,
+    streetNumber: num,
+    streetName: route,
     city: get("locality") ?? get("postal_town") ?? get("sublocality") ?? get("administrative_area_level_3"),
     state: get("administrative_area_level_1", true),
     zip: get("postal_code"),
@@ -113,9 +143,10 @@ export function parseAddressComponents(components: AddrComponent[]) {
 export async function placeDetails(key: string, placeId: string, sessionToken?: string, f: Fetcher = fetch): Promise<ResolvedAddress> {
   const qs = sessionToken ? `?sessionToken=${encodeURIComponent(sessionToken)}` : "";
   const res = await f(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}${qs}`, {
-    headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": "formattedAddress,location,addressComponents" },
+    headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": "id,formattedAddress,location,addressComponents" },
   });
   const data = (await res.json()) as {
+    id?: string;
     formattedAddress?: string;
     location?: { latitude: number; longitude: number };
     addressComponents?: AddrComponent[];
@@ -124,10 +155,11 @@ export async function placeDetails(key: string, placeId: string, sessionToken?: 
   if (!res.ok) throw new MapsError(data.error?.message ?? `Place lookup failed (${res.status})`, res.status);
   const parts = parseAddressComponents(data.addressComponents ?? []);
   return {
-    formatted: (data.formattedAddress ?? "").replace(/, USA$/, ""),
+    formatted: stripUsa(data.formattedAddress ?? ""),
     ...parts,
     lat: data.location?.latitude ?? null,
     lng: data.location?.longitude ?? null,
+    placeId: data.id ?? placeId,
   };
 }
 
@@ -137,7 +169,12 @@ export async function geocode(key: string, address: string, f: Fetcher = fetch):
   const data = (await res.json()) as {
     status: string;
     error_message?: string;
-    results?: { formatted_address: string; geometry: { location: { lat: number; lng: number } }; address_components: AddrComponent[] }[];
+    results?: {
+      place_id?: string;
+      formatted_address: string;
+      geometry: { location: { lat: number; lng: number } };
+      address_components: AddrComponent[];
+    }[];
   };
   if (data.status === "ZERO_RESULTS") return null;
   if (!res.ok || data.status !== "OK" || !data.results?.length) {
@@ -145,10 +182,11 @@ export async function geocode(key: string, address: string, f: Fetcher = fetch):
   }
   const top = data.results[0];
   return {
-    formatted: top.formatted_address.replace(/, USA$/, ""),
+    formatted: stripUsa(top.formatted_address),
     ...parseAddressComponents(top.address_components),
     lat: top.geometry.location.lat,
     lng: top.geometry.location.lng,
+    placeId: top.place_id ?? null,
   };
 }
 

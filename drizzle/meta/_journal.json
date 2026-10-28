@@ -15,6 +15,20 @@
       "when": 1790996538135,
       "tag": "0001_leads_fuel_branding",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791219498192,
+      "tag": "0002_user_signup",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793146255600,
+      "tag": "0003_address_place_id",
+      "breakpoints": true
     }
   ]
 }

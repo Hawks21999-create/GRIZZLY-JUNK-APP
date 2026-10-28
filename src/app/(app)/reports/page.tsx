@@ -1,5 +1,5 @@
 import { Download } from "lucide-react";
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import { EXPENSE_CATEGORY_LABEL } from "@/lib/constants";
 import { money, money0, miles, pct } from "@/lib/format";
 import { fmtYmd, periodDays, type PeriodKey } from "@/lib/tz";
@@ -11,7 +11,7 @@ import { Bar, Card, PageHeader, Row, SectionTitle, Stat, profitTone } from "@/co
 export const metadata = { title: "Reports" };
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string; from?: string; to?: string }> }) {
-  await requireAdmin();
+  await requireAdminPage();
   const sp = await searchParams;
   const s = await getSettings();
   const key = (["today", "week", "month", "last_month", "year", "custom"].includes(sp.period ?? "") ? sp.period : "month") as PeriodKey;

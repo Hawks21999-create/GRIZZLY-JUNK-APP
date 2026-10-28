@@ -4,7 +4,7 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { logoutEverywhere } from "@/app/actions/auth";
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import { gcalConfigured, redirectUri } from "@/server/gcal";
 import { dieselLabel, getCurrentDiesel } from "@/server/fuel";
 import { getDumpFacilities, getEmployees, getLeadSources, getSettings, getVehicles } from "@/server/settings";
@@ -24,7 +24,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { SETTINGS_SECTIONS } from "@/components/settings-sections";
 
 export default async function SettingsSection({ params, searchParams }: { params: Promise<{ section: string }>; searchParams: Promise<{ gcal?: string; msg?: string }> }) {
-  const me = await requireAdmin();
+  const me = await requireAdminPage();
   const { section } = await params;
   const sp = await searchParams;
   const meta = SETTINGS_SECTIONS.find((s) => s.key === section);
@@ -166,7 +166,7 @@ export default async function SettingsSection({ params, searchParams }: { params
         <UsersEditor
           meId={me.id}
           isOwner={me.role === "OWNER"}
-          users={u.map((x) => ({ id: x.id, name: x.name, email: x.email, role: x.role, active: x.active, lastLoginAt: x.lastLoginAt?.toISOString() ?? null }))}
+          users={u.map((x) => ({ id: x.id, name: x.name, email: x.email, role: x.role === "ADMIN" ? "FULL ACCESS" : x.role, active: x.active, pending: x.pending, lastLoginAt: x.lastLoginAt?.toISOString() ?? null }))}
         />
       );
       break;

@@ -214,6 +214,7 @@ export function RouteEditor({
                       <AddressInput
                         value={s.address}
                         mapsEnabled={mapsEnabled}
+                        verified={s.lat != null}
                         onChange={(t) => update(stops.map((x) => (x.key === s.key ? { ...x, address: t, lat: null, lng: null } : x)), false)}
                         onResolved={(a) =>
                           update(stops.map((x) => (x.key === s.key ? { ...x, address: a.formatted, lat: a.lat, lng: a.lng } : x)))

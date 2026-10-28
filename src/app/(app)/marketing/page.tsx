@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth/server";
+import { requireAdminPage } from "@/lib/auth/server";
 import { money, money0, pct, ratio } from "@/lib/format";
 import { fmtYmd, parsePeriod, periodDays } from "@/lib/tz";
 import { distinctCities } from "@/server/leads";
@@ -10,7 +10,7 @@ import { Card, PageHeader, cx } from "@/components/ui";
 export const metadata = { title: "Marketing" };
 
 export default async function MarketingPage({ searchParams }: { searchParams: Promise<{ period?: string; from?: string; to?: string; city?: string }> }) {
-  await requireAdmin();
+  await requireAdminPage();
   const sp = await searchParams;
   const s = await getSettings();
   const key = parsePeriod(sp.period, "month");

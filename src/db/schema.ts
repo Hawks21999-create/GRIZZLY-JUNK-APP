@@ -120,6 +120,8 @@ export const users = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: userRole("role").notNull().default("OWNER"),
   active: boolean("active").notNull().default(true),
+  /** Self sign-up waiting for the owner's approval (can't log in until approved). */
+  pending: boolean("pending").notNull().default(false),
   /** Incrementing this invalidates every existing session for the user. */
   sessionVersion: integer("session_version").notNull().default(1),
   failedLogins: integer("failed_logins").notNull().default(0),
@@ -223,6 +225,8 @@ export const customers = pgTable(
     zip: text("zip"),
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
+    /** Google Place ID of a verified (autocomplete-selected) address. */
+    placeId: text("place_id"),
     leadSourceId: uuid("lead_source_id").references(() => leadSources.id, { onDelete: "set null" }),
     notes: text("notes"),
     createdAt: createdAt(),
@@ -258,6 +262,8 @@ export const jobs = pgTable(
     zip: text("zip"),
     lat: doublePrecision("lat"),
     lng: doublePrecision("lng"),
+    /** Google Place ID of a verified (autocomplete-selected) address. */
+    placeId: text("place_id"),
 
     // Pricing & payment
     quotedPrice: money("quoted_price").notNull().default(0),

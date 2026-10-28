@@ -3,7 +3,7 @@ import { SESSION_COOKIE, verifySession } from "@/lib/auth/jwt";
 
 // Fast signature check at the edge. Every page/action/API additionally
 // re-validates the user against the database (see lib/auth/server.ts).
-const PUBLIC_PATHS = ["/login", "/api/health", "/manifest.webmanifest", "/icon", "/apple-icon", "/favicon.ico"];
+const PUBLIC_PATHS = ["/login", "/signup", "/api/health", "/manifest.webmanifest", "/icon", "/apple-icon", "/favicon.ico"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

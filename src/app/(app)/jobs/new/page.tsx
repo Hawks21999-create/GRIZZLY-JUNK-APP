@@ -25,6 +25,7 @@ export default async function NewJobPage({ searchParams }: { searchParams: Promi
         zip: c.zip,
         lat: c.lat,
         lng: c.lng,
+        placeId: c.placeId,
         leadSourceId: options.leadSources.find((l) => l.name === "Repeat Customer")?.id ?? c.leadSourceId,
       };
     }

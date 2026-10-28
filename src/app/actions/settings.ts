@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
@@ -155,7 +155,33 @@ export async function setUserActive(id: string, active: boolean): Promise<Action
     if (id === me.id) throw new UserError("You can't deactivate your own account.");
     const [u] = await db.select().from(users).where(eq(users.id, z.string().uuid().parse(id)));
     if (!u) throw new UserError("User not found");
+    if (u.pending) throw new UserError("Approve or decline this sign-up request instead.");
     await db.update(users).set({ active, sessionVersion: u.sessionVersion + 1 }).where(eq(users.id, id));
+    done();
+    return undefined;
+  });
+}
+
+/** Owner approves a self sign-up and picks what they can see. */
+export async function approveUser(id: string, role: "ADMIN" | "EMPLOYEE"): Promise<ActionResult> {
+  return run(async () => {
+    const me = await requireAdmin();
+    if (me.role !== "OWNER") throw new UserError("Only the owner can approve accounts.");
+    z.enum(["ADMIN", "EMPLOYEE"]).parse(role);
+    const [u] = await db.select().from(users).where(eq(users.id, z.string().uuid().parse(id)));
+    if (!u || !u.pending) throw new UserError("That sign-up request no longer exists.");
+    await db.update(users).set({ pending: false, active: true, role }).where(eq(users.id, id));
+    done();
+    return undefined;
+  });
+}
+
+/** Owner declines a self sign-up (the request is removed). */
+export async function declineUser(id: string): Promise<ActionResult> {
+  return run(async () => {
+    const me = await requireAdmin();
+    if (me.role !== "OWNER") throw new UserError("Only the owner can decline accounts.");
+    await db.delete(users).where(and(eq(users.id, z.string().uuid().parse(id)), eq(users.pending, true)));
     done();
     return undefined;
   });

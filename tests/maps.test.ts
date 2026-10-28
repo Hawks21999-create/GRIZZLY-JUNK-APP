@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { autocomplete, computeRoute, geocode, parseAddressComponents, placeDetails } from "@/lib/maps-google";
+import { autocomplete, computeRoute, DEFAULT_BIAS, friendlyMapsError, geocode, MapsError, parseAddressComponents, placeDetails } from "@/lib/maps-google";
 import { buildEventBody } from "@/lib/gcal-event";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
@@ -49,7 +49,28 @@ describe("Places / Geocoding", () => {
       json({ suggestions: [{ placePrediction: { placeId: "abc123", text: { text: "100 Main St, Cumming, GA, USA" }, structuredFormat: { mainText: { text: "100 Main St" }, secondaryText: { text: "Cumming, GA, USA" } } } }] }),
     );
     const s = await autocomplete("K", "100 main", { biasLat: 34.2, biasLng: -84.1 }, f as unknown as typeof fetch);
-    expect(s).toEqual([{ placeId: "abc123", main: "100 Main St", secondary: "Cumming, GA, USA", full: "100 Main St, Cumming, GA, USA" }]);
+    expect(s).toEqual([{ placeId: "abc123", main: "100 Main St", secondary: "Cumming, GA", full: "100 Main St, Cumming, GA" }]);
+  });
+
+  it("biases toward the business location, and Cumming GA when it isn't set", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const f = vi.fn(async (_u: string, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return json({ suggestions: [] });
+    });
+    await autocomplete("K", "123 Bethelview", { biasLat: 34.3, biasLng: -84.0 }, f as unknown as typeof fetch);
+    await autocomplete("K", "Market Pl Dawsonville", {}, f as unknown as typeof fetch);
+    expect(bodies[0].locationBias).toEqual({ circle: { center: { latitude: 34.3, longitude: -84.0 }, radius: 50000 } });
+    expect(bodies[1].locationBias).toEqual({ circle: { center: { latitude: DEFAULT_BIAS.lat, longitude: DEFAULT_BIAS.lng }, radius: 50000 } });
+    // bias, not restriction — any U.S. address is still searchable
+    expect(bodies[1].locationRestriction).toBeUndefined();
+    expect(bodies[1].includedRegionCodes).toEqual(["us"]);
+  });
+
+  it("turns Google failures into short, friendly messages", () => {
+    expect(friendlyMapsError(new MapsError("Quota exceeded", 429)).status).toBe(429);
+    expect(friendlyMapsError(new MapsError("API key not valid. Please pass a valid API key.", 400)).message).toMatch(/key problem/);
+    expect(friendlyMapsError(new Error("socket hang up")).message).toMatch(/type the address/);
   });
 
   it("parses place details into city/state/zip/lat/lng", async () => {
@@ -67,14 +88,28 @@ describe("Places / Geocoding", () => {
       }),
     );
     const p = await placeDetails("K", "abc123", undefined, f as unknown as typeof fetch);
-    expect(p).toEqual({ formatted: "100 Main St, Cumming, GA 30040", street: "100 Main Street", city: "Cumming", state: "GA", zip: "30040", lat: 34.2, lng: -84.14 });
+    expect(p).toEqual({
+      formatted: "100 Main St, Cumming, GA 30040",
+      street: "100 Main Street",
+      streetNumber: "100",
+      streetName: "Main Street",
+      city: "Cumming",
+      state: "GA",
+      zip: "30040",
+      lat: 34.2,
+      lng: -84.14,
+      placeId: "abc123",
+    });
   });
 
   it("geocodes and handles ZERO_RESULTS", async () => {
     const ok = vi.fn(async () =>
-      json({ status: "OK", results: [{ formatted_address: "Alpharetta, GA, USA", geometry: { location: { lat: 34.07, lng: -84.29 } }, address_components: [{ long_name: "Alpharetta", short_name: "Alpharetta", types: ["locality"] }] }] }),
+      json({ status: "OK", results: [{ place_id: "geo1", formatted_address: "Alpharetta, GA, USA", geometry: { location: { lat: 34.07, lng: -84.29 } }, address_components: [{ long_name: "Alpharetta", short_name: "Alpharetta", types: ["locality"] }] }] }),
     );
-    expect((await geocode("K", "Alpharetta", ok as unknown as typeof fetch))?.city).toBe("Alpharetta");
+    const g = await geocode("K", "Alpharetta", ok as unknown as typeof fetch);
+    expect(g?.city).toBe("Alpharetta");
+    expect(g?.placeId).toBe("geo1");
+    expect(g?.formatted).toBe("Alpharetta, GA");
     const none = vi.fn(async () => json({ status: "ZERO_RESULTS", results: [] }));
     expect(await geocode("K", "zzzz", none as unknown as typeof fetch)).toBeNull();
   });

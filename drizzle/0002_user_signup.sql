@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "pending" boolean DEFAULT false NOT NULL;

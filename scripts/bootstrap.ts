@@ -67,6 +67,36 @@ async function main() {
       console.log("✓ Created owner login:", email);
     }
   }
+  // Emergency owner-password reset: set ADMIN_RESET=true (plus ADMIN_EMAIL and
+  // ADMIN_PASSWORD) in the hosting environment and redeploy. Remove ADMIN_RESET afterwards.
+  if (process.env.ADMIN_RESET?.trim().toLowerCase() === "true") {
+    const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const password = process.env.ADMIN_PASSWORD ?? "";
+    if (!email || password.length < 10) {
+      console.warn("! ADMIN_RESET is on but ADMIN_EMAIL / ADMIN_PASSWORD (10+ chars) are missing — skipped.");
+    } else {
+      const hash = await bcrypt.hash(password, 12);
+      const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (existing) {
+        await db
+          .update(users)
+          .set({
+            passwordHash: hash,
+            role: "OWNER",
+            active: true,
+            pending: false,
+            failedLogins: 0,
+            lockedUntil: null,
+            sessionVersion: existing.sessionVersion + 1,
+          })
+          .where(eq(users.id, existing.id));
+        console.log("✓ ADMIN_RESET: password reset for", email);
+      } else {
+        await db.insert(users).values({ email, name: process.env.ADMIN_NAME || "Owner", role: "OWNER", passwordHash: hash });
+        console.log("✓ ADMIN_RESET: created owner login", email);
+      }
+    }
+  }
   console.log("✓ Bootstrap complete");
 }
 

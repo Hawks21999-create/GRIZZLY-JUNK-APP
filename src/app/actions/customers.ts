@@ -22,6 +22,7 @@ export async function saveCustomer(id: string | null, payload: z.input<typeof cu
       emailLower: v.email?.toLowerCase() ?? null,
       lat: v.lat ?? null,
       lng: v.lng ?? null,
+      placeId: v.lat != null ? v.placeId : null,
     };
     if (id) {
       z.string().uuid().parse(id);

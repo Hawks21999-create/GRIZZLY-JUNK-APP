@@ -27,6 +27,7 @@ export default async function EditCustomerPage({ params }: { params: Promise<{ i
           zip: c.zip,
           lat: c.lat,
           lng: c.lng,
+          placeId: c.placeId,
           leadSourceId: c.leadSourceId,
           notes: c.notes ?? "",
         }}
